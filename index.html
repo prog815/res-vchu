@@ -629,6 +629,22 @@
     renderMore();
   }
 
+  // Вспомогательная функция для формирования подробного текста сообщения
+  function getShareText(r, url) {
+    var lines = [r.model || r.productName || r.deviceType || r.reestrNum || 'Без названия'];
+    lines.push('Ссылка: ' + url);
+    if (r.reestrNum) lines.push('Реестровый номер: ' + r.reestrNum);
+    if (r.deviceType) lines.push('Тип: ' + r.deviceType);
+    if (r.model) lines.push('Модель: ' + r.model);
+    if (r.ManufacturedBy) lines.push('Изготовитель: ' + r.ManufacturedBy);
+    if (r.Country) lines.push('Страна: ' + r.Country);
+    if (r.expirationDate) lines.push('Срок действия: ' + r.expirationDate);
+    if (r.isActual_label) lines.push('Статус: ' + r.isActual_label);
+    if (r.is_expired && r.isActual) lines.push('⚠️ Срок истёк');
+    if (r.comment) lines.push('Примечание: ' + r.comment);
+    return lines.join('\n');
+  }
+
   function bindShareButtons() {
     if (!window.customElements || !customElements.get('klassik-share')) {
       return;
@@ -641,11 +657,13 @@
       var id = slots[j].getAttribute('data-id');
       var nameText = slots[j].getAttribute('data-name');
       var url = window.location.origin + window.location.pathname + '?code=' + id;
+      var r = DATA.find(function(x){ return x.id === id; });
+      var fullText = r ? getShareText(r, url) : (nameText + '\n' + url);
 
       var el = document.createElement('klassik-share');
       el.setAttribute('catalog', 'res_vchu');
       el.setAttribute('title', 'Реестр РЭС и ВЧУ разрешенных для ввоза на территорию РФ');
-      el.setAttribute('text', nameText);
+      el.setAttribute('text', fullText);
       el.setAttribute('url', url);
 
       var btn = document.createElement('button');
@@ -781,17 +799,17 @@
       var id = btnShare.getAttribute('data-id');
       var name = btnShare.getAttribute('data-name');
       var url = window.location.origin + window.location.pathname + '?code=' + id;
-      var shareText = name + '\nКод: ' + id + '\n' + url;
+      var r = DATA.find(function(x){ return x.id === id; });
+      var shareText = r ? getShareText(r, url) : (name + '\n' + url);
 
       if (navigator.share) {
         navigator.share({
           title: 'Реестр РЭС и ВЧУ',
-          text: name,
-          url: url
+          text: shareText
         }).catch(console.error);
       } else {
         navigator.clipboard.writeText(shareText).then(function(){
-          showToast('Ссылка скопирована');
+          showToast('Сообщение скопировано');
         });
       }
 
