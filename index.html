@@ -664,7 +664,7 @@
       el.setAttribute('catalog', 'res_vchu');
       el.setAttribute('title', 'Реестр РЭС и ВЧУ разрешенных для ввоза на территорию РФ');
       el.setAttribute('text', fullText);
-      // el.setAttribute('url', url); <-- Убрано, чтобы не дублировать ссылку
+      el.setAttribute('url', ''); // Принудительно пустой URL, чтобы share.js не добавлял ссылку внизу
 
       var btn = document.createElement('button');
       btn.type = 'button';
@@ -806,7 +806,6 @@
         navigator.share({
           title: 'Реестр РЭС и ВЧУ',
           text: shareText
-          // url: url <-- Убрано, чтобы не дублировать
         }).catch(console.error);
       } else {
         navigator.clipboard.writeText(shareText).then(function(){
