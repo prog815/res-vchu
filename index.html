@@ -103,16 +103,16 @@
   .search-container{padding:12px 0 8px;}
   .searchbar{display:flex; gap:8px; align-items:stretch; flex-wrap:wrap;}
   .searchbar input[type=text]{
-    flex:1 1 240px; min-width:200px; font-size:16px; padding:12px 16px;
+    flex:1; min-width:200px; font-size:16px; padding:12px 16px;
     border:1px solid var(--line); border-radius:var(--radius);
     background:var(--panel); color:var(--ink); outline:none;
     transition:border-color .2s;
   }
   .searchbar input[type=text]:focus{border-color:var(--brand); box-shadow:0 0 0 3px var(--accent)}
   .searchbar select {
-    flex: 0 1 200px; font-size:16px; padding:12px 16px; border:1px solid var(--line);
+    font-size:16px; padding:12px 16px; border:1px solid var(--line);
     border-radius:var(--radius); background:var(--panel); color:var(--ink);
-    outline:none; cursor:pointer;
+    outline:none; cursor:pointer; max-width:240px;
   }
   .searchbar select:focus { border-color:var(--brand); }
 
@@ -279,8 +279,8 @@
     .klassik-banner{padding:4px 8px}
     .wrap{padding:0 12px}
     .name{font-size:16px}
-    .searchbar input[type=text] { flex: 1 1 100%; max-width:none; }
-    .searchbar select { flex: 1 1 100%; max-width:none; margin-top:8px; }
+    .searchbar input[type=text] { width: 100%; max-width:none; }
+    .searchbar select { width: 100%; max-width:none; margin-top:8px; }
   }
 </style>
 </head>
@@ -307,12 +307,9 @@
   <div class="search-container">
     <div class="searchbar">
       <input id="q" type="text" autocomplete="off" spellcheck="false"
-             placeholder="Поиск по модели, изготовителю, типу, номеру..." title="Введите данные для поиска">
+             placeholder="Поиск по модели, изготовителю, типу устройства, номеру..." title="Введите данные для поиска">
       <select id="status-filter" title="Фильтр по статусу">
         <option value="">Все записи</option>
-      </select>
-      <select id="country-filter" title="Фильтр по стране">
-        <option value="">Все страны</option>
       </select>
     </div>
   </div>
@@ -388,7 +385,6 @@
   var els = {
     q: document.getElementById('q'),
     statusFilter: document.getElementById('status-filter'),
-    countryFilter: document.getElementById('country-filter'),
     clearAll: document.getElementById('clear-all'),
     count: document.getElementById('count'),
     status: document.getElementById('status'),
@@ -470,9 +466,8 @@
   function updateClearVisibility() {
     var hasQuery = String(els.q.value || '').length > 0;
     var hasStatus = String(els.statusFilter.value || '').length > 0;
-    var hasCountry = String(els.countryFilter.value || '').length > 0;
     var hasCode = !!activeDeepLinkCode;
-    els.clearAll.style.display = (hasQuery || hasStatus || hasCountry || hasCode) ? 'block' : 'none';
+    els.clearAll.style.display = (hasQuery || hasStatus || hasCode) ? 'block' : 'none';
   }
 
   async function boot(){
@@ -487,7 +482,7 @@
 
       if(!Array.isArray(raw)) throw new Error('bad data shape');
 
-      // Маппинг 14 полей
+      // Маппинг 14 полей из тетрадки
       DATA = raw.map(function(it) {
         return {
           id: String(it[0] || ''),
@@ -511,7 +506,7 @@
         els.footstats.textContent = 'В справочнике ' + fmt(META.records_count) + ' записей.';
         els.footdate.textContent = META.change_display || '';
         
-        // Заполняем фильтр статусов
+        // Заполняем фильтр статусов динамически из meta
         if (META.filter_decisions && META.filter_decisions.isActual_label && META.filter_decisions.isActual_label.values) {
           var vals = META.filter_decisions.isActual_label.values;
           for (var j = 0; j < vals.length; j++) {
@@ -522,24 +517,6 @@
             els.statusFilter.appendChild(opt);
           }
         }
-      }
-
-      // Заполняем фильтр стран динамически из данных
-      var allCountries = new Set();
-      DATA.forEach(function(r) {
-        if (r.countries_all) {
-          r.countries_all.split('\n').forEach(function(c) {
-            var trimmed = c.trim();
-            if (trimmed) allCountries.add(trimmed);
-          });
-        }
-      });
-      var sortedCountries = Array.from(allCountries).sort(function(a,b){ return a.localeCompare(b, 'ru'); });
-      for (var k=0; k<sortedCountries.length; k++) {
-        var optC = document.createElement('option');
-        optC.value = sortedCountries[k];
-        optC.textContent = sortedCountries[k];
-        els.countryFilter.appendChild(optC);
       }
 
       stopLoadingTicker();
@@ -581,17 +558,10 @@
     var query = normName(els.q.value);
     var tokens = query.split(' ').filter(Boolean);
     var statusVal = els.statusFilter.value;
-    var countryVal = els.countryFilter.value;
 
     view.list = DATA.filter(function(r){
-      // Фильтр по статусу
+      // Фильтр по статусу (жёсткое совпадение)
       if (statusVal && r.isActual_label !== statusVal) return false;
-
-      // Фильтр по стране (точное совпадение с одним из элементов countries_all)
-      if (countryVal) {
-        var countriesList = r.countries_all ? r.countries_all.split('\n') : [];
-        if (countriesList.indexOf(countryVal) === -1) return false;
-      }
 
       // Текстовый поиск (AND по токенам)
       if (tokens.length > 0) {
@@ -782,16 +752,9 @@
     runSearch();
   });
 
-  els.countryFilter.addEventListener('change', function(){
-    activeDeepLinkCode = null;
-    clearCodeFromUrl();
-    runSearch();
-  });
-
   function clearAllAction() {
     els.q.value = '';
     els.statusFilter.value = '';
-    els.countryFilter.value = '';
     activeDeepLinkCode = null;
     clearCodeFromUrl();
     runSearch();
